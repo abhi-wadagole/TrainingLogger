@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#14181f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Training Log">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>Training Log</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+:root{
+  --bg: #14181f;
+  --panel: #1c222c;
+  --panel-2: #232a36;
+  --line: #313a48;
+  --ink: #e8ebf0;
+  --ink-dim: #8b95a5;
+  --accent: #d4a017;
+  --accent-dim: #8a6c1f;
+  --good: #5fae6f;
+  --danger: #c76b5f;
+  --radius: 10px;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:720px;margin:0 auto;padding:24px 18px 60px;}
+
+/* header */
+header{margin-bottom:22px;}
+.eyebrow{
+  font-family:'JetBrains Mono',monospace;
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--accent);margin-bottom:6px;
+}
+h1{
+  font-family:'Oswald',sans-serif;
+  font-weight:700;letter-spacing:.01em;
+  font-size:32px;margin:0 0 4px;
+  text-transform:uppercase;
+}
+.sub{color:var(--ink-dim);font-size:14px;margin:0;}
+
+/* streak strip */
+.streak{
+  display:flex;gap:6px;margin-top:16px;
+}
+.tick{
+  flex:1;height:8px;border-radius:2px;background:var(--panel-2);
+  border:1px solid var(--line);
+}
+.tick.filled{background:var(--accent);border-color:var(--accent);}
+.streak-label{
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-dim);
+  margin-top:6px;display:flex;justify-content:space-between;
+}
+
+/* day picker */
+.day-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:20px 0;
+}
+.day-btn{
+  background:var(--panel);border:1px solid var(--line);color:var(--ink);
+  border-radius:var(--radius);padding:12px 8px;cursor:pointer;text-align:center;
+  font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:.03em;text-transform:uppercase;
+  transition:.15s;
+}
+.day-btn:hover{border-color:var(--accent-dim);}
+.day-btn.active{background:var(--accent);border-color:var(--accent);color:#1a1408;font-weight:600;}
+.day-btn .tag{
+  display:block;font-family:'JetBrains Mono',monospace;font-size:10px;
+  text-transform:none;letter-spacing:0;opacity:.7;margin-top:2px;
+}
+
+/* tabs */
+.tabs{display:flex;gap:4px;margin:22px 0 14px;border-bottom:1px solid var(--line);}
+.tab{
+  font-family:'JetBrains Mono',monospace;font-size:12px;letter-spacing:.05em;
+  color:var(--ink-dim);background:none;border:none;padding:10px 4px;cursor:pointer;
+  border-bottom:2px solid transparent;text-transform:uppercase;
+}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+/* exercise cards */
+.session-head{
+  display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;
+}
+.session-head h2{
+  font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:20px;margin:0;
+}
+.session-head span{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-dim);}
+
+.ex-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 16px;margin-bottom:10px;
+}
+.ex-top{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px;}
+.ex-num{
+  font-family:'JetBrains Mono',monospace;color:var(--accent);font-size:13px;
+  min-width:22px;
+}
+.ex-name{font-weight:600;font-size:15px;line-height:1.3;}
+.ex-target{
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-dim);margin-top:2px;
+}
+.ex-note{font-size:12px;color:var(--ink-dim);margin-top:4px;font-style:italic;}
+
+.sets-row{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;}
+.set-input{
+  flex:1;min-width:70px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:6px;padding:8px;
+}
+.set-input label{
+  display:block;font-family:'JetBrains Mono',monospace;font-size:9px;
+  color:var(--ink-dim);text-transform:uppercase;margin-bottom:4px;letter-spacing:.05em;
+}
+.set-input input{
+  width:100%;background:none;border:none;color:var(--ink);font-family:'JetBrains Mono',monospace;
+  font-size:14px;outline:none;
+}
+.set-input input::placeholder{color:#4a5568;}
+
+.cardio-card{
+  background:var(--panel);border:1px dashed var(--accent-dim);border-radius:var(--radius);
+  padding:14px 16px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;
+}
+.cardio-card .lbl{font-weight:600;font-size:14px;}
+.cardio-card .sm{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-dim);}
+.cardio-card input{
+  width:60px;background:var(--panel-2);border:1px solid var(--line);border-radius:6px;
+  color:var(--ink);font-family:'JetBrains Mono',monospace;padding:8px;text-align:center;
+}
+
+textarea{
+  width:100%;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  color:var(--ink);padding:12px;font-family:'Inter',sans-serif;font-size:13px;resize:vertical;
+  min-height:50px;margin-bottom:14px;
+}
+
+.save-btn{
+  width:100%;background:var(--accent);color:#1a1408;border:none;border-radius:var(--radius);
+  padding:14px;font-family:'Oswald',sans-serif;font-size:15px;letter-spacing:.03em;
+  text-transform:uppercase;font-weight:600;cursor:pointer;
+}
+.save-btn:disabled{opacity:.5;cursor:default;}
+.save-msg{
+  text-align:center;font-family:'JetBrains Mono',monospace;font-size:12px;
+  color:var(--good);margin-top:8px;min-height:16px;
+}
+
+/* history */
+.hist-entry{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:14px 16px;margin-bottom:10px;
+}
+.hist-top{display:flex;justify-content:space-between;align-items:baseline;}
+.hist-day{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:15px;}
+.hist-date{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-dim);}
+.hist-body{margin-top:8px;font-size:13px;color:var(--ink-dim);line-height:1.6;}
+.hist-body b{color:var(--ink);}
+.empty{
+  text-align:center;padding:40px 20px;color:var(--ink-dim);font-size:13px;
+  border:1px dashed var(--line);border-radius:var(--radius);
+}
+.loading{text-align:center;color:var(--ink-dim);font-size:13px;padding:20px;}
+
+/* nutrition */
+.targets-card{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px;margin-bottom:16px;
+}
+.targets-title{
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-dim);
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px;
+}
+.targets-row{display:flex;gap:10px;flex-wrap:wrap;}
+.target-pill{
+  flex:1;min-width:80px;background:var(--panel-2);border:1px solid var(--line);
+  border-radius:8px;padding:10px;text-align:center;
+}
+.target-pill .num{font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--accent);font-weight:700;}
+.target-pill .lbl{font-size:10px;color:var(--ink-dim);text-transform:uppercase;letter-spacing:.05em;margin-top:2px;}
+
+.nutri-form{
+  background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  padding:16px;margin-bottom:16px;
+}
+.nutri-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.nutri-field{background:var(--panel-2);border:1px solid var(--line);border-radius:6px;padding:8px;}
+.nutri-field label{
+  display:block;font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--ink-dim);
+  text-transform:uppercase;margin-bottom:4px;letter-spacing:.05em;
+}
+.nutri-field input{
+  width:100%;background:none;border:none;color:var(--ink);font-family:'JetBrains Mono',monospace;
+  font-size:14px;outline:none;
+}
+
+.nutri-log-entry{
+  display:flex;justify-content:space-between;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  padding:10px 14px;margin-bottom:8px;font-size:13px;
+}
+.nutri-log-entry .d{font-family:'JetBrains Mono',monospace;color:var(--ink-dim);font-size:11px;}
+.nutri-log-entry .v{font-family:'JetBrains Mono',monospace;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Fitness Connection &middot; 6-Day Push / Pull / Legs</div>
+    <h1>Training Log</h1>
+    <p class="sub">Knee-modified &middot; beginner progression &middot; 45&ndash;60 min sessions</p>
+    <div class="streak" id="streak"></div>
+    <div class="streak-label"><span id="streakText">Loading...</span><span id="totalText"></span></div>
+  </header>
+
+  <div class="day-grid" id="dayGrid"></div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="log">Log Session</button>
+    <button class="tab" data-tab="nutrition">Nutrition</button>
+    <button class="tab" data-tab="history">History</button>
+  </div>
+
+  <div id="logView"></div>
+  <div id="nutritionView" style="display:none;"></div>
+  <div id="historyView" style="display:none;"></div>
+</div>
+
+<script>
+// Falls back to browser localStorage when running outside Claude
+// (e.g. hosted standalone on GitHub Pages), so the same file works in both places.
+if(!window.storage){
+  window.storage = {
+    async get(key){
+      const v = localStorage.getItem(key);
+      if(v===null){ const e=new Error("not found"); throw e; }
+      return { key, value: v, shared:false };
+    },
+    async set(key, value){
+      localStorage.setItem(key, value);
+      return { key, value, shared:false };
+    },
+    async delete(key){
+      localStorage.removeItem(key);
+      return { key, deleted:true, shared:false };
+    },
+    async list(prefix){
+      const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
+      return { keys, prefix, shared:false };
+    }
+  };
+}
+
+const PROGRAM = {
+  push1: { label: "Push A", tag: "Chest/Shldr/Tri", exercises: [
+    { name: "Machine Chest Press", target: "3 x 10–12", note: "Controlled tempo, full range." },
+    { name: "Seated Shoulder Press", target: "3 x 10–12" },
+    { name: "Cable / DB Lateral Raise", target: "3 x 12–15" },
+    { name: "Triceps Pushdown", target: "3 x 12–15" },
+    { name: "Assisted Dip or Push-up", target: "2 x max reps" },
+  ]},
+  pull1: { label: "Pull A", tag: "Back/Biceps", exercises: [
+    { name: "Lat Pulldown", target: "3 x 10–12" },
+    { name: "Seated Cable Row", target: "3 x 10–12" },
+    { name: "Face Pull", target: "3 x 12–15" },
+    { name: "Dumbbell Bicep Curl", target: "3 x 12–15" },
+    { name: "Back Extension", target: "2 x 12", note: "Light — control the movement." },
+  ]},
+  legs1: { label: "Legs A", tag: "Knee-friendly", exercises: [
+    { name: "Leg Press", target: "3 x 10–12", note: "Moderate depth — stop short of knee pain." },
+    { name: "Romanian Deadlift", target: "3 x 10–12", note: "Hip hinge, soft knees — not a squat." },
+    { name: "Seated Leg Curl", target: "3 x 12" },
+    { name: "Standing Calf Raise", target: "3 x 15" },
+    { name: "Glute Bridge / Hip Thrust", target: "3 x 12–15" },
+    { name: "Plank", target: "3 x 30–45s" },
+    { name: "Dead Bug", target: "3 x 10/side" },
+  ]},
+  push2: { label: "Push B", tag: "Chest/Shldr/Tri", exercises: [
+    { name: "Incline Machine Press", target: "3 x 10–12" },
+    { name: "Dumbbell Shoulder Press", target: "3 x 10–12" },
+    { name: "Cable Front Raise", target: "3 x 12–15" },
+    { name: "Overhead Triceps Extension", target: "3 x 12–15" },
+    { name: "Chest Fly (machine/cable)", target: "2 x 12–15" },
+  ]},
+  pull2: { label: "Pull B", tag: "Back/Biceps", exercises: [
+    { name: "Chest-Supported Row", target: "3 x 10–12" },
+    { name: "Single-Arm Lat Pulldown", target: "3 x 10–12" },
+    { name: "Rear Delt Fly", target: "3 x 12–15" },
+    { name: "Hammer Curl", target: "3 x 12–15" },
+    { name: "Cable Row (wide grip)", target: "2 x 12" },
+  ]},
+  legs2: { label: "Legs B", tag: "Knee-friendly", exercises: [
+    { name: "Leg Press (wide stance)", target: "3 x 10–12", note: "Shallow, controlled — sub for squats." },
+    { name: "Low Step-Up", target: "3 x 10/leg", note: "Low box — control the descent." },
+    { name: "Leg Extension", target: "3 x 12", note: "Light-moderate. Skip if it aggravates the knee." },
+    { name: "Hip Abduction Machine", target: "3 x 15" },
+    { name: "Seated Calf Raise", target: "3 x 15" },
+    { name: "Bicycle Crunch", target: "3 x 15/side" },
+    { name: "Side Plank", target: "3 x 20–30s/side" },
+  ]},
+  rest: { label: "Rest", tag: "Recovery day", exercises: [] },
+};
+const DAY_ORDER = ["push1","pull1","legs1","push2","pull2","legs2","rest"];
+
+let selectedDay = "push1";
+let activeTab = "log";
+let storageReady = true;
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+// ---------- Day picker ----------
+function renderDayGrid(){
+  const grid = document.getElementById("dayGrid");
+  grid.innerHTML = "";
+  DAY_ORDER.forEach(key=>{
+    const d = PROGRAM[key];
+    const btn = document.createElement("button");
+    btn.className = "day-btn" + (key===selectedDay ? " active":"");
+    btn.innerHTML = d.label + '<span class="tag">'+d.tag+'</span>';
+    btn.onclick = ()=>{ selectedDay = key; renderDayGrid(); renderLog(); };
+    grid.appendChild(btn);
+  });
+}
+
+// ---------- Tabs ----------
+document.querySelectorAll(".tab").forEach(t=>{
+  t.onclick = ()=>{
+    activeTab = t.dataset.tab;
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("logView").style.display = activeTab==="log" ? "" : "none";
+    document.getElementById("nutritionView").style.display = activeTab==="nutrition" ? "" : "none";
+    document.getElementById("historyView").style.display = activeTab==="history" ? "" : "none";
+    if(activeTab==="history") renderHistory();
+    if(activeTab==="nutrition") renderNutrition();
+  };
+});
+
+const TARGETS = { calories: 1950, protein: 150, fat: 60, carbs: 200 };
+
+// ---------- Log view ----------
+function renderLog(){
+  const view = document.getElementById("logView");
+  const day = PROGRAM[selectedDay];
+
+  if(selectedDay === "rest"){
+    view.innerHTML = '<div class="empty">Rest day. No lifting logged here — light walking or stretching if you feel like it.</div>';
+    return;
+  }
+
+  let html = '<div class="session-head"><h2>'+day.label+'</h2><span>'+todayISO()+'</span></div>';
+
+  day.exercises.forEach((ex, i)=>{
+    html += '<div class="ex-card" data-ex="'+i+'">';
+    html += '<div class="ex-top"><div class="ex-num">'+String(i+1).padStart(2,"0")+'</div><div>';
+    html += '<div class="ex-name">'+ex.name+'</div>';
+    html += '<div class="ex-target">Target: '+ex.target+'</div>';
+    if(ex.note) html += '<div class="ex-note">'+ex.note+'</div>';
+    html += '</div></div>';
+    html += '<div class="sets-row">';
+    for(let s=1; s<=3; s++){
+      html += '<div class="set-input"><label>Set '+s+' &middot; lb x reps</label>';
+      html += '<input type="text" inputmode="numeric" placeholder="e.g. 40x10" data-set="'+s+'"></div>';
+    }
+    html += '</div></div>';
+  });
+
+  html += '<div class="cardio-card"><div><div class="lbl">Cardio finisher</div><div class="sm">incline walk / bike, low impact</div></div>';
+  html += '<input type="number" id="cardioMin" placeholder="min"></div>';
+
+  html += '<textarea id="notes" placeholder="Notes — how it felt, knee check-in, energy..."></textarea>';
+  html += '<button class="save-btn" id="saveBtn">Save Workout</button>';
+  html += '<div class="save-msg" id="saveMsg"></div>';
+
+  view.innerHTML = html;
+  document.getElementById("saveBtn").onclick = saveWorkout;
+}
+
+async function saveWorkout(){
+  const day = PROGRAM[selectedDay];
+  const btn = document.getElementById("saveBtn");
+  const msg = document.getElementById("saveMsg");
+  btn.disabled = true;
+
+  const exercises = [];
+  document.querySelectorAll(".ex-card").forEach(card=>{
+    const idx = parseInt(card.dataset.ex);
+    const sets = [];
+    card.querySelectorAll(".set-input input").forEach(inp=>{
+      if(inp.value.trim()) sets.push(inp.value.trim());
+    });
+    exercises.push({ name: day.exercises[idx].name, sets });
+  });
+
+  const entry = {
+    day: selectedDay,
+    label: day.label,
+    date: todayISO(),
+    timestamp: new Date().toISOString(),
+    exercises,
+    cardioMin: document.getElementById("cardioMin").value || null,
+    notes: document.getElementById("notes").value || ""
+  };
+
+  try{
+    const key = "log:" + entry.date + ":" + entry.timestamp;
+    const res = await window.storage.set(key, JSON.stringify(entry), false);
+    if(res){
+      msg.textContent = "Saved — nice work.";
+      msg.style.color = "var(--good)";
+      await loadStreak();
+    } else {
+      msg.textContent = "Couldn't save — try again.";
+      msg.style.color = "var(--danger)";
+    }
+  } catch(e){
+    msg.textContent = "Storage error — your data wasn't saved.";
+    msg.style.color = "var(--danger)";
+  }
+  btn.disabled = false;
+}
+
+// ---------- History ----------
+async function renderHistory(){
+  const view = document.getElementById("historyView");
+  view.innerHTML = '<div class="loading">Loading history...</div>';
+  try{
+    const list = await window.storage.list("log:", false);
+    if(!list || !list.keys || list.keys.length===0){
+      view.innerHTML = '<div class="empty">No sessions logged yet. Finish a workout and hit Save.</div>';
+      return;
+    }
+    const keys = [...list.keys].sort().reverse().slice(0,25);
+    const entries = [];
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, false);
+        if(r && r.value) entries.push(JSON.parse(r.value));
+      }catch(e){}
+    }
+    if(entries.length===0){
+      view.innerHTML = '<div class="empty">No sessions logged yet.</div>';
+      return;
+    }
+    let html = "";
+    entries.forEach(e=>{
+      html += '<div class="hist-entry"><div class="hist-top">';
+      html += '<div class="hist-day">'+e.label+'</div><div class="hist-date">'+e.date+'</div></div>';
+      html += '<div class="hist-body">';
+      (e.exercises||[]).forEach(ex=>{
+        if(ex.sets && ex.sets.length){
+          html += '<div><b>'+ex.name+':</b> '+ex.sets.join(", ")+'</div>';
+        }
+      });
+      if(e.cardioMin) html += '<div><b>Cardio:</b> '+e.cardioMin+' min</div>';
+      if(e.notes) html += '<div style="margin-top:4px;">"'+e.notes+'"</div>';
+      html += '</div></div>';
+    });
+    view.innerHTML = html;
+  }catch(e){
+    view.innerHTML = '<div class="empty">Couldn\'t load history right now.</div>';
+  }
+}
+
+// ---------- Nutrition ----------
+function renderNutrition(){
+  const view = document.getElementById("nutritionView");
+  let html = '<div class="targets-card"><div class="targets-title">Daily targets</div><div class="targets-row">';
+  html += '<div class="target-pill"><div class="num">'+TARGETS.calories+'</div><div class="lbl">Calories</div></div>';
+  html += '<div class="target-pill"><div class="num">'+TARGETS.protein+'g</div><div class="lbl">Protein</div></div>';
+  html += '<div class="target-pill"><div class="num">'+TARGETS.fat+'g</div><div class="lbl">Fat</div></div>';
+  html += '<div class="target-pill"><div class="num">'+TARGETS.carbs+'g</div><div class="lbl">Carbs</div></div>';
+  html += '</div></div>';
+
+  html += '<div class="nutri-form">';
+  html += '<div class="nutri-grid">';
+  html += '<div class="nutri-field"><label>Weight (lb)</label><input type="number" id="nWeight" placeholder="153"></div>';
+  html += '<div class="nutri-field"><label>Calories</label><input type="number" id="nCal" placeholder="1950"></div>';
+  html += '<div class="nutri-field"><label>Protein (g)</label><input type="number" id="nProtein" placeholder="150"></div>';
+  html += '<div class="nutri-field"><label>Date</label><input type="date" id="nDate" value="'+todayISO()+'"></div>';
+  html += '</div>';
+  html += '<textarea id="nNotes" placeholder="What you ate, how hunger/energy felt..."></textarea>';
+  html += '<button class="save-btn" id="nSaveBtn">Save Day</button>';
+  html += '<div class="save-msg" id="nSaveMsg"></div>';
+  html += '</div>';
+
+  html += '<div id="nutriLogList"><div class="loading">Loading recent entries...</div></div>';
+
+  view.innerHTML = html;
+  document.getElementById("nSaveBtn").onclick = saveNutrition;
+  loadNutritionLog();
+}
+
+async function saveNutrition(){
+  const btn = document.getElementById("nSaveBtn");
+  const msg = document.getElementById("nSaveMsg");
+  btn.disabled = true;
+
+  const entry = {
+    date: document.getElementById("nDate").value || todayISO(),
+    weight: document.getElementById("nWeight").value || null,
+    calories: document.getElementById("nCal").value || null,
+    protein: document.getElementById("nProtein").value || null,
+    notes: document.getElementById("nNotes").value || "",
+    timestamp: new Date().toISOString()
+  };
+
+  try{
+    const key = "nutrition:" + entry.date;
+    const res = await window.storage.set(key, JSON.stringify(entry), false);
+    if(res){
+      msg.textContent = "Saved.";
+      msg.style.color = "var(--good)";
+      loadNutritionLog();
+    } else {
+      msg.textContent = "Couldn't save — try again.";
+      msg.style.color = "var(--danger)";
+    }
+  } catch(e){
+    msg.textContent = "Storage error — your data wasn't saved.";
+    msg.style.color = "var(--danger)";
+  }
+  btn.disabled = false;
+}
+
+async function loadNutritionLog(){
+  const list_el = document.getElementById("nutriLogList");
+  try{
+    const list = await window.storage.list("nutrition:", false);
+    if(!list || !list.keys || list.keys.length===0){
+      list_el.innerHTML = '<div class="empty">No days logged yet.</div>';
+      return;
+    }
+    const keys = [...list.keys].sort().reverse().slice(0,10);
+    let html = "";
+    for(const k of keys){
+      try{
+        const r = await window.storage.get(k, false);
+        if(r && r.value){
+          const e = JSON.parse(r.value);
+          html += '<div class="nutri-log-entry"><span class="d">'+e.date+'</span>';
+          html += '<span class="v">'+(e.calories||"–")+' cal &middot; '+(e.protein||"–")+'g protein'+(e.weight ? ' &middot; '+e.weight+' lb' : '')+'</span></div>';
+        }
+      }catch(e){}
+    }
+    list_el.innerHTML = html || '<div class="empty">No days logged yet.</div>';
+  }catch(e){
+    list_el.innerHTML = '<div class="empty">Couldn\'t load nutrition log.</div>';
+  }
+}
+
+// ---------- Streak strip ----------
+async function loadStreak(){
+  try{
+    const list = await window.storage.list("log:", false);
+    const dates = new Set();
+    if(list && list.keys){
+      list.keys.forEach(k=>{
+        const parts = k.split(":");
+        if(parts[1]) dates.add(parts[1]);
+      });
+    }
+    const strip = document.getElementById("streak");
+    strip.innerHTML = "";
+    const today = new Date();
+    let count7 = 0;
+    for(let i=6; i>=0; i--){
+      const d = new Date(today);
+      d.setDate(d.getDate()-i);
+      const iso = d.toISOString().slice(0,10);
+      const filled = dates.has(iso);
+      if(filled) count7++;
+      const tick = document.createElement("div");
+      tick.className = "tick" + (filled ? " filled":"");
+      strip.appendChild(tick);
+    }
+    document.getElementById("streakText").textContent = count7 + " of last 7 days trained";
+    document.getElementById("totalText").textContent = dates.size + " sessions total";
+  }catch(e){
+    document.getElementById("streakText").textContent = "History unavailable";
+  }
+}
+
+renderDayGrid();
+renderLog();
+loadStreak();
+</script>
+</body>
+</html>
