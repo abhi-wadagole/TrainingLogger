@@ -705,7 +705,7 @@ async function computeExerciseMaxes(excludeKey){
 
 // ---------- Exercise info (Free Exercise DB — public domain, static, no API guesswork) ----------
 const EXDB_URL = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json";
-const EXDB_IMG_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises/";
+const EXDB_IMG_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/";
 const EXDB_CACHE_KEY = "exercisedb_cache_v1";
 let exerciseDbCache = null;
 
@@ -769,7 +769,7 @@ async function toggleInfo(idx, name){
   if(panel.dataset.loaded === "1") return;
   panel.innerHTML = '<div class="loading">Loading...</div>';
 
-  const cacheKey = "exinfo:" + name.toLowerCase();
+  const cacheKey = "exinfo2:" + name.toLowerCase();
   try{
     let data = null;
     try{
