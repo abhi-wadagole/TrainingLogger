@@ -509,20 +509,26 @@ async function renderLog(){
   document.getElementById("saveBtn").onclick = ()=>saveEntry(true);
   initRestTimer();
 
-  // autosave on blur (delegated, capture phase since blur doesn't bubble)
-  view.addEventListener("blur", (e)=>{
-    if(e.target.matches && e.target.matches("input,textarea")){
-      saveEntry(false);
-    }
-  }, true);
+  // Delegated listeners on #logView, attached once ever — renderLog() runs on
+  // every day-tab switch, but the container element itself is never recreated,
+  // so re-attaching here would stack duplicate listeners (each click/blur firing
+  // multiple times — the bug behind the "Form? doesn't work on later tabs" issue).
+  if(!view.dataset.delegated){
+    view.addEventListener("blur", (e)=>{
+      if(e.target.matches && e.target.matches("input,textarea")){
+        saveEntry(false);
+      }
+    }, true);
 
-  // "Form?" buttons (delegated, avoids fragile inline onclick + quoting issues)
-  view.addEventListener("click", (e)=>{
-    const btn = e.target.closest(".info-btn");
-    if(btn){
-      toggleInfo(parseInt(btn.dataset.infoIdx), btn.dataset.infoName);
-    }
-  });
+    view.addEventListener("click", (e)=>{
+      const btn = e.target.closest(".info-btn");
+      if(btn){
+        toggleInfo(parseInt(btn.dataset.infoIdx), btn.dataset.infoName);
+      }
+    });
+
+    view.dataset.delegated = "1";
+  }
 }
 
 function entryKey(){
