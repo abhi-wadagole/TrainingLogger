@@ -161,6 +161,67 @@ textarea{
 .nutri-log-entry{display:flex;justify-content:space-between;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px;margin-bottom:8px;font-size:13px;}
 .nutri-log-entry .d{font-family:'JetBrains Mono',monospace;color:var(--ink-dim);font-size:11px;}
 .nutri-log-entry .v{font-family:'JetBrains Mono',monospace;}
+
+/* progress / charts */
+.chart-select{
+  width:100%;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+  color:var(--ink);padding:12px;font-family:'JetBrains Mono',monospace;font-size:13px;margin-bottom:14px;
+}
+.chart-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin-bottom:16px;}
+.chart-title{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:15px;margin-bottom:4px;}
+.chart-sub{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-dim);margin-bottom:12px;}
+.chart-svg-wrap{width:100%;overflow-x:auto;}
+.chart-svg-wrap svg{display:block;}
+.chart-pt{fill:var(--accent);}
+.chart-line{fill:none;stroke:var(--accent);stroke-width:2;}
+.chart-axis{stroke:var(--line);stroke-width:1;}
+.chart-label{font-family:'JetBrains Mono',monospace;font-size:9px;fill:var(--ink-dim);}
+.chart-empty{text-align:center;color:var(--ink-dim);font-size:12px;padding:30px 0;}
+
+/* PR badge */
+.pr-banner{
+  background:linear-gradient(90deg, var(--accent-dim), var(--accent));
+  color:#1a1408;border-radius:8px;padding:10px 14px;margin-top:10px;
+  font-family:'Oswald',sans-serif;font-size:13px;text-transform:uppercase;letter-spacing:.03em;font-weight:600;
+}
+
+/* history edit/delete */
+.hist-actions{display:flex;gap:8px;margin-top:10px;}
+.hist-btn{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--ink-dim);
+  border-radius:6px;padding:6px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;
+}
+.hist-btn.edit{color:var(--accent);}
+.hist-btn.danger{color:var(--danger);}
+.hist-edit-row{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 0;}
+.hist-edit-row input{
+  background:var(--panel-2);border:1px solid var(--line);border-radius:6px;color:var(--ink);
+  font-family:'JetBrains Mono',monospace;font-size:13px;padding:6px;width:100%;
+}
+.export-btn{
+  background:var(--panel-2);border:1px solid var(--line);color:var(--ink);border-radius:8px;
+  padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:11px;cursor:pointer;
+  margin-bottom:14px;width:100%;text-align:center;
+}
+
+/* rest timer */
+.timer-card{background:var(--panel);border:1px solid var(--accent-dim);border-radius:var(--radius);padding:16px;margin-bottom:14px;}
+.timer-title{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:14px;margin-bottom:10px;}
+.timer-display{
+  font-family:'JetBrains Mono',monospace;font-size:36px;text-align:center;color:var(--accent);
+  margin-bottom:10px;font-weight:700;
+}
+.timer-presets{display:flex;gap:8px;margin-bottom:10px;}
+.timer-preset{
+  flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+  border-radius:6px;padding:8px;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;
+}
+.timer-preset.active{background:var(--accent);color:#1a1408;border-color:var(--accent);}
+.timer-controls{display:flex;gap:8px;}
+.timer-controls button{
+  flex:1;background:var(--panel-2);border:1px solid var(--line);color:var(--ink);
+  border-radius:6px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:12px;cursor:pointer;text-transform:uppercase;
+}
 </style>
 </head>
 <body>
@@ -178,11 +239,13 @@ textarea{
   <div class="tabs">
     <button class="tab active" data-tab="log">Log Session</button>
     <button class="tab" data-tab="nutrition">Nutrition</button>
+    <button class="tab" data-tab="progress">Progress</button>
     <button class="tab" data-tab="history">History</button>
   </div>
 
   <div id="logView"></div>
   <div id="nutritionView" style="display:none;"></div>
+  <div id="progressView" style="display:none;"></div>
   <div id="historyView" style="display:none;"></div>
 </div>
 
@@ -374,9 +437,11 @@ document.querySelectorAll(".tab").forEach(t=>{
     t.classList.add("active");
     document.getElementById("logView").style.display = activeTab==="log" ? "" : "none";
     document.getElementById("nutritionView").style.display = activeTab==="nutrition" ? "" : "none";
+    document.getElementById("progressView").style.display = activeTab==="progress" ? "" : "none";
     document.getElementById("historyView").style.display = activeTab==="history" ? "" : "none";
     if(activeTab==="history") renderHistory();
     if(activeTab==="nutrition") renderNutrition();
+    if(activeTab==="progress") renderProgress();
   };
 });
 
@@ -424,13 +489,25 @@ async function renderLog(){
   html += '<div class="cardio-card"><div><div class="lbl">Cardio finisher</div><div class="sm">incline walk / bike, low impact</div></div>';
   html += '<input type="number" id="cardioMin" placeholder="min" value="'+(existing&&existing.cardioMin?existing.cardioMin:"")+'"></div>';
 
+  html += '<div class="timer-card"><div class="timer-title">Rest Timer</div>';
+  html += '<div class="timer-display" id="timerDisplay">1:30</div>';
+  html += '<div class="timer-presets">';
+  html += '<button class="timer-preset" data-secs="60">60s</button>';
+  html += '<button class="timer-preset active" data-secs="90">90s</button>';
+  html += '<button class="timer-preset" data-secs="120">120s</button>';
+  html += '</div>';
+  html += '<div class="timer-controls"><button id="timerStart">Start</button><button id="timerReset">Reset</button></div>';
+  html += '</div>';
+
   html += '<textarea id="notes" placeholder="Notes — how it felt, knee check-in, energy...">'+(existing&&existing.notes?existing.notes:"")+'</textarea>';
   html += '<button class="save-btn" id="saveBtn">Save Workout</button>';
-  html += '<div class="autosave-note">Fields autosave as you fill them in — Save just confirms and updates your streak.</div>';
+  html += '<div class="autosave-note">Fields autosave as you fill them in — Save just confirms, updates your streak, and checks for PRs.</div>';
   html += '<div class="save-msg" id="saveMsg">'+(existing ? "Loaded your entry for today." : "")+'</div>';
+  html += '<div id="prBanner"></div>';
 
   view.innerHTML = html;
   document.getElementById("saveBtn").onclick = ()=>saveEntry(true);
+  initRestTimer();
 
   // autosave on blur (delegated, capture phase since blur doesn't bubble)
   view.addEventListener("blur", (e)=>{
@@ -450,6 +527,67 @@ async function renderLog(){
 
 function entryKey(){
   return "entry:" + todayISO() + ":" + selectedDay;
+}
+
+// ---------- Rest timer ----------
+let timerInterval = null;
+let timerSecsLeft = 90;
+let timerTotal = 90;
+
+function initRestTimer(){
+  timerSecsLeft = 90; timerTotal = 90;
+  clearInterval(timerInterval); timerInterval = null;
+  const display = document.getElementById("timerDisplay");
+  if(!display) return;
+  updateTimerDisplay();
+
+  document.querySelectorAll(".timer-preset").forEach(btn=>{
+    btn.onclick = ()=>{
+      document.querySelectorAll(".timer-preset").forEach(b=>b.classList.remove("active"));
+      btn.classList.add("active");
+      timerTotal = parseInt(btn.dataset.secs);
+      timerSecsLeft = timerTotal;
+      clearInterval(timerInterval); timerInterval = null;
+      document.getElementById("timerStart").textContent = "Start";
+      updateTimerDisplay();
+    };
+  });
+
+  document.getElementById("timerStart").onclick = ()=>{
+    const btn = document.getElementById("timerStart");
+    if(timerInterval){
+      clearInterval(timerInterval); timerInterval = null;
+      btn.textContent = "Resume";
+      return;
+    }
+    btn.textContent = "Pause";
+    timerInterval = setInterval(()=>{
+      timerSecsLeft--;
+      updateTimerDisplay();
+      if(timerSecsLeft<=0){
+        clearInterval(timerInterval); timerInterval = null;
+        if(navigator.vibrate) navigator.vibrate([200,100,200,100,200]);
+        btn.textContent = "Start";
+        timerSecsLeft = timerTotal;
+        updateTimerDisplay();
+      }
+    }, 1000);
+  };
+
+  document.getElementById("timerReset").onclick = ()=>{
+    clearInterval(timerInterval); timerInterval = null;
+    timerSecsLeft = timerTotal;
+    document.getElementById("timerStart").textContent = "Start";
+    updateTimerDisplay();
+  };
+}
+
+function updateTimerDisplay(){
+  const display = document.getElementById("timerDisplay");
+  if(!display) return;
+  const m = Math.floor(timerSecsLeft/60);
+  const s = timerSecsLeft%60;
+  display.textContent = m + ":" + String(s).padStart(2,"0");
 }
 
 function collectEntry(){
@@ -491,6 +629,7 @@ function collectEntry(){
 async function saveEntry(explicit){
   const btn = document.getElementById("saveBtn");
   const msg = document.getElementById("saveMsg");
+  const prBanner = document.getElementById("prBanner");
   const entry = collectEntry();
 
   if(!entry.hasData){
@@ -500,12 +639,34 @@ async function saveEntry(explicit){
 
   if(explicit && btn) btn.disabled = true;
   try{
+    // compute PRs before saving (compare against history, excluding today's own prior save)
+    let prLines = [];
+    if(explicit){
+      try{
+        const maxes = await computeExerciseMaxes(entryKey());
+        entry.exercises.forEach(ex=>{
+          const bestToday = Math.max(0, ...ex.sets.filter(s=>s.weight!=null).map(s=>s.weight));
+          if(bestToday>0){
+            const prev = maxes[ex.name];
+            if(!prev || bestToday > prev.weight){
+              prLines.push(ex.name + " — " + bestToday + " lb" + (prev ? " (was " + prev.weight + " lb)" : " (first time logged)"));
+            }
+          }
+        });
+      }catch(e){ /* PR check is best-effort, don't block saving */ }
+    }
+
     const res = await window.storage.set(entryKey(), JSON.stringify(entry), false);
     if(explicit){
       if(res){
         msg.textContent = "Saved — nice work.";
         msg.style.color = "var(--good)";
         await loadStreak();
+        if(prBanner){
+          prBanner.innerHTML = prLines.length
+            ? prLines.map(l=>'<div class="pr-banner">\u{1F3C6} New PR — '+l+'</div>').join("")
+            : "";
+        }
       } else {
         msg.textContent = "Couldn't save — try again.";
         msg.style.color = "var(--danger)";
@@ -515,6 +676,31 @@ async function saveEntry(explicit){
     if(explicit && msg){ msg.textContent = "Storage error — your data wasn't saved."; msg.style.color = "var(--danger)"; }
   }
   if(explicit && btn) btn.disabled = false;
+}
+
+// scans all past workout entries to find each exercise's best-ever weight
+async function computeExerciseMaxes(excludeKey){
+  const maxes = {};
+  const list = await window.storage.list("entry:", false);
+  if(list && list.keys){
+    for(const k of list.keys){
+      if(k === excludeKey) continue;
+      try{
+        const r = await window.storage.get(k, false);
+        const e = JSON.parse(r.value);
+        (e.exercises||[]).forEach(ex=>{
+          (ex.sets||[]).forEach(s=>{
+            if(s.weight!=null){
+              if(!maxes[ex.name] || s.weight > maxes[ex.name].weight){
+                maxes[ex.name] = { weight: s.weight, date: e.date };
+              }
+            }
+          });
+        });
+      }catch(err){}
+    }
+  }
+  return maxes;
 }
 
 // ---------- Exercise info (wger.de, CC BY-SA, free open exercise database) ----------
@@ -579,7 +765,7 @@ async function renderHistory(){
         const r = await window.storage.get(k, false);
         if(r && r.value){
           const e = JSON.parse(r.value);
-          if(e.hasData !== false) entries.push(e);
+          if(e.hasData !== false) entries.push({ key: k, data: e });
         }
       }catch(e){}
     }
@@ -587,11 +773,11 @@ async function renderHistory(){
       view.innerHTML = '<div class="empty">No sessions logged yet.</div>';
       return;
     }
-    let html = "";
-    entries.forEach(e=>{
-      html += '<div class="hist-entry"><div class="hist-top">';
+    let html = '<button class="export-btn" id="exportBtn">Export all my data (JSON)</button>';
+    entries.forEach(({key, data:e}, idx)=>{
+      html += '<div class="hist-entry" data-hist-key="'+key+'"><div class="hist-top">';
       html += '<div class="hist-day">'+e.label+'</div><div class="hist-date">'+e.date+'</div></div>';
-      html += '<div class="hist-body">';
+      html += '<div class="hist-body" data-hist-view="'+idx+'">';
       (e.exercises||[]).forEach(ex=>{
         const parts = (ex.sets||[]).filter(s=>s.weight!=null || s.reps!=null)
           .map(s=> (s.weight!=null?s.weight+'lb':'BW') + ' x ' + (s.reps!=null?s.reps:'?') );
@@ -599,11 +785,113 @@ async function renderHistory(){
       });
       if(e.cardioMin) html += '<div><b>Cardio:</b> '+e.cardioMin+' min</div>';
       if(e.notes) html += '<div style="margin-top:4px;">"'+e.notes+'"</div>';
+      html += '</div>';
+      html += '<div class="hist-edit" data-hist-edit="'+idx+'" style="display:none;"></div>';
+      html += '<div class="hist-actions">';
+      html += '<button class="hist-btn edit" data-act="edit" data-idx="'+idx+'">Edit</button>';
+      html += '<button class="hist-btn danger" data-act="delete" data-idx="'+idx+'">Delete</button>';
       html += '</div></div>';
     });
     view.innerHTML = html;
+
+    document.getElementById("exportBtn").onclick = exportAllData;
+
+    view.querySelectorAll('[data-act="delete"]').forEach(btn=>{
+      btn.onclick = async ()=>{
+        const idx = parseInt(btn.dataset.idx);
+        const {key, data} = entries[idx];
+        if(!confirm('Delete '+data.label+' on '+data.date+'? This can\'t be undone.')) return;
+        try{
+          await window.storage.delete(key, false);
+          await loadStreak();
+          renderHistory();
+        }catch(e){ alert('Could not delete — try again.'); }
+      };
+    });
+
+    view.querySelectorAll('[data-act="edit"]').forEach(btn=>{
+      btn.onclick = ()=>{
+        const idx = parseInt(btn.dataset.idx);
+        const editEl = view.querySelector('[data-hist-edit="'+idx+'"]');
+        const viewEl = view.querySelector('[data-hist-view="'+idx+'"]');
+        if(editEl.style.display === "none"){
+          renderHistEditForm(editEl, entries[idx], idx);
+          editEl.style.display = "";
+          viewEl.style.display = "none";
+          btn.textContent = "Cancel";
+        } else {
+          editEl.style.display = "none";
+          viewEl.style.display = "";
+          btn.textContent = "Edit";
+        }
+      };
+    });
   }catch(e){
     view.innerHTML = '<div class="empty">Couldn\'t load history right now.</div>';
+  }
+}
+
+function renderHistEditForm(container, entryWrap, idx){
+  const e = entryWrap.data;
+  let html = "";
+  e.exercises.forEach((ex, exi)=>{
+    html += '<div style="margin:10px 0;"><div class="ex-name" style="font-size:13px;">'+ex.name+'</div>';
+    (ex.sets||[]).forEach((s, si)=>{
+      html += '<div class="hist-edit-row">';
+      html += '<input type="number" placeholder="Weight" data-ex="'+exi+'" data-set="'+si+'" data-field="weight" value="'+(s.weight!=null?s.weight:"")+'">';
+      html += '<input type="number" placeholder="Reps" data-ex="'+exi+'" data-set="'+si+'" data-field="reps" value="'+(s.reps!=null?s.reps:"")+'">';
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  html += '<div class="hist-edit-row"><input type="number" id="editCardio-'+idx+'" placeholder="Cardio min" value="'+(e.cardioMin||"")+'"></div>';
+  html += '<textarea id="editNotes-'+idx+'" placeholder="Notes">'+(e.notes||"")+'</textarea>';
+  html += '<button class="save-btn" id="editSave-'+idx+'">Save Changes</button>';
+  container.innerHTML = html;
+
+  container.querySelector('#editSave-'+idx).onclick = async ()=>{
+    const updated = JSON.parse(JSON.stringify(e));
+    container.querySelectorAll('input[data-ex]').forEach(inp=>{
+      const exi = parseInt(inp.dataset.ex), si = parseInt(inp.dataset.set), field = inp.dataset.field;
+      const v = inp.value !== "" ? Number(inp.value) : null;
+      updated.exercises[exi].sets[si][field] = v;
+    });
+    updated.cardioMin = container.querySelector('#editCardio-'+idx).value || null;
+    updated.notes = container.querySelector('#editNotes-'+idx).value || "";
+    updated.lastSaved = new Date().toISOString();
+    try{
+      await window.storage.set(entryWrap.key, JSON.stringify(updated), false);
+      renderHistory();
+    }catch(err){ alert('Could not save changes — try again.'); }
+  };
+}
+
+async function exportAllData(){
+  try{
+    const out = { exportedAt: new Date().toISOString(), workouts: [], nutrition: [] };
+    const wList = await window.storage.list("entry:", false);
+    if(wList && wList.keys){
+      for(const k of wList.keys){
+        try{ const r = await window.storage.get(k, false); out.workouts.push(JSON.parse(r.value)); }catch(e){}
+      }
+    }
+    const nList = await window.storage.list("nutrition:", false);
+    if(nList && nList.keys){
+      for(const k of nList.keys){
+        try{ const r = await window.storage.get(k, false); out.nutrition.push(JSON.parse(r.value)); }catch(e){}
+      }
+    }
+    const blob = new Blob([JSON.stringify(out, null, 2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "training-log-export-" + todayISO() + ".json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }catch(e){
+    alert("Export failed — try again.");
   }
 }
 
@@ -692,6 +980,119 @@ async function loadNutritionLog(){
   }catch(e){
     list_el.innerHTML = '<div class="empty">Couldn\'t load nutrition log.</div>';
   }
+}
+
+// ---------- Progress charts ----------
+function allExerciseNames(){
+  const names = new Set();
+  DAY_ORDER.forEach(k=>{
+    (PROGRAM[k].exercises||[]).forEach(ex=>names.add(ex.name));
+  });
+  return [...names].sort();
+}
+
+async function renderProgress(){
+  const view = document.getElementById("progressView");
+  view.innerHTML = '<div class="loading">Loading...</div>';
+
+  let html = '<select class="chart-select" id="progressSelect">';
+  html += '<option value="__bodyweight__">Body Weight</option>';
+  allExerciseNames().forEach(n=>{ html += '<option value="'+n.replace(/"/g,"&quot;")+'">'+n+'</option>'; });
+  html += '</select>';
+  html += '<div id="chartHolder"><div class="loading">Loading chart...</div></div>';
+  view.innerHTML = html;
+
+  document.getElementById("progressSelect").onchange = (e)=>drawProgressChart(e.target.value);
+  drawProgressChart("__bodyweight__");
+}
+
+async function drawProgressChart(selection){
+  const holder = document.getElementById("chartHolder");
+  holder.innerHTML = '<div class="loading">Loading chart...</div>';
+  let points = [];
+  let unit = "lb";
+  let title = selection;
+
+  try{
+    if(selection === "__bodyweight__"){
+      title = "Body Weight";
+      const list = await window.storage.list("nutrition:", false);
+      if(list && list.keys){
+        for(const k of list.keys){
+          try{
+            const r = await window.storage.get(k, false);
+            const e = JSON.parse(r.value);
+            if(e.weight!=null && e.weight!=="") points.push({ date: e.date, value: Number(e.weight) });
+          }catch(err){}
+        }
+      }
+    } else {
+      title = selection;
+      const list = await window.storage.list("entry:", false);
+      if(list && list.keys){
+        for(const k of list.keys){
+          try{
+            const r = await window.storage.get(k, false);
+            const e = JSON.parse(r.value);
+            const ex = (e.exercises||[]).find(x=>x.name===selection);
+            if(ex){
+              const weights = (ex.sets||[]).filter(s=>s.weight!=null).map(s=>s.weight);
+              if(weights.length) points.push({ date: e.date, value: Math.max(...weights) });
+            }
+          }catch(err){}
+        }
+      }
+    }
+  }catch(e){
+    holder.innerHTML = '<div class="chart-empty">Couldn\'t load this chart right now.</div>';
+    return;
+  }
+
+  points.sort((a,b)=> a.date < b.date ? -1 : 1);
+
+  if(points.length < 2){
+    holder.innerHTML = '<div class="chart-card"><div class="chart-title">'+title+'</div>'+
+      '<div class="chart-empty">Log at least 2 data points to see a trend.</div></div>';
+    return;
+  }
+
+  holder.innerHTML = '<div class="chart-card"><div class="chart-title">'+title+'</div>'+
+    '<div class="chart-sub">'+points[0].date+' \u2192 '+points[points.length-1].date+' &middot; '+points.length+' points</div>'+
+    '<div class="chart-svg-wrap">'+buildLineChartSVG(points, unit)+'</div></div>';
+}
+
+function buildLineChartSVG(points, unit){
+  const w = 620, h = 220, padL = 40, padR = 16, padT = 16, padB = 28;
+  const vals = points.map(p=>p.value);
+  const minV = Math.min(...vals), maxV = Math.max(...vals);
+  const range = (maxV - minV) || 1;
+  const yFor = v => padT + (h-padT-padB) * (1 - (v-minV)/range);
+  const xFor = i => padL + (w-padL-padR) * (i/(points.length-1));
+
+  let path = "";
+  points.forEach((p,i)=>{
+    const x = xFor(i), y = yFor(p.value);
+    path += (i===0 ? "M" : "L") + x.toFixed(1) + "," + y.toFixed(1) + " ";
+  });
+
+  let dots = points.map((p,i)=>{
+    const x = xFor(i), y = yFor(p.value);
+    return '<circle class="chart-pt" cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="3"></circle>';
+  }).join("");
+
+  const firstLabel = points[0].date.slice(5);
+  const lastLabel = points[points.length-1].date.slice(5);
+
+  let svg = '<svg viewBox="0 0 '+w+' '+h+'" width="100%">';
+  svg += '<line class="chart-axis" x1="'+padL+'" y1="'+(h-padB)+'" x2="'+(w-padR)+'" y2="'+(h-padB)+'"></line>';
+  svg += '<text class="chart-label" x="'+padL+'" y="'+(padT+4)+'">'+Math.round(maxV)+' '+unit+'</text>';
+  svg += '<text class="chart-label" x="'+padL+'" y="'+(h-padB-2)+'">'+Math.round(minV)+' '+unit+'</text>';
+  svg += '<text class="chart-label" x="'+padL+'" y="'+(h-6)+'">'+firstLabel+'</text>';
+  svg += '<text class="chart-label" x="'+(w-padR-30)+'" y="'+(h-6)+'">'+lastLabel+'</text>';
+  svg += '<path class="chart-line" d="'+path+'"></path>';
+  svg += dots;
+  svg += '</svg>';
+  return svg;
 }
 
 // ---------- Streak strip ----------
