@@ -187,24 +187,110 @@ textarea{
 </div>
 
 <script>
-// Falls back to browser localStorage when running outside Claude
-// (e.g. hosted standalone on GitHub Pages), so the same file works in both places.
+// When running standalone (e.g. GitHub Pages), route storage through Supabase
+// instead of Claude's built-in window.storage, so data syncs across devices.
+const SUPABASE_URL = "https://ikzuupmmfijewobbgxaf.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_NwoBTbmwhlOLWd6_uIoUKQ_M_SPLdCo";
+
+async function sbRequest(path, options={}){
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, {
+    method: options.method || "GET",
+    headers: Object.assign({
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+      "Content-Type": "application/json"
+    }, options.headers || {}),
+    body: options.body ? JSON.stringify(options.body) : undefined
+  });
+  if(!res.ok){
+    const t = await res.text().catch(()=>"");
+    throw new Error("Supabase " + res.status + ": " + t);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
 if(!window.storage){
   window.storage = {
     async get(key){
+      if(key.startsWith("entry:")){
+        const [, date, dayKey] = key.split(":");
+        const rows = await sbRequest("workout_entries?entry_date=eq."+date+"&day_key=eq."+dayKey+"&select=*");
+        if(!rows || rows.length===0) throw new Error("not found");
+        const r = rows[0];
+        const value = JSON.stringify({
+          day: r.day_key, label: r.day_label, date: r.entry_date,
+          lastSaved: r.last_saved, exercises: r.exercises,
+          cardioMin: r.cardio_min, notes: r.notes, hasData: true
+        });
+        return { key, value, shared:false };
+      }
+      if(key.startsWith("nutrition:")){
+        const date = key.split(":")[1];
+        const rows = await sbRequest("nutrition_entries?entry_date=eq."+date+"&select=*");
+        if(!rows || rows.length===0) throw new Error("not found");
+        const r = rows[0];
+        const value = JSON.stringify({
+          date: r.entry_date, weight: r.weight, calories: r.calories,
+          protein: r.protein, notes: r.notes, timestamp: r.last_saved
+        });
+        return { key, value, shared:false };
+      }
       const v = localStorage.getItem(key);
-      if(v===null){ throw new Error("not found"); }
+      if(v===null) throw new Error("not found");
       return { key, value: v, shared:false };
     },
     async set(key, value){
+      if(key.startsWith("entry:")){
+        const [, date, dayKey] = key.split(":");
+        const e = JSON.parse(value);
+        await sbRequest("workout_entries?on_conflict=entry_date,day_key", {
+          method:"POST",
+          headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+          body: { entry_date: date, day_key: dayKey, day_label: e.label,
+                   exercises: e.exercises, cardio_min: e.cardioMin ? Number(e.cardioMin) : null,
+                   notes: e.notes, last_saved: e.lastSaved || new Date().toISOString() }
+        });
+        return { key, value, shared:false };
+      }
+      if(key.startsWith("nutrition:")){
+        const date = key.split(":")[1];
+        const e = JSON.parse(value);
+        await sbRequest("nutrition_entries?on_conflict=entry_date", {
+          method:"POST",
+          headers:{ "Prefer":"resolution=merge-duplicates,return=minimal" },
+          body: { entry_date: date, weight: e.weight ? Number(e.weight) : null,
+                   calories: e.calories ? Number(e.calories) : null, protein: e.protein ? Number(e.protein) : null,
+                   notes: e.notes, last_saved: e.timestamp || new Date().toISOString() }
+        });
+        return { key, value, shared:false };
+      }
       localStorage.setItem(key, value);
       return { key, value, shared:false };
     },
     async delete(key){
+      if(key.startsWith("entry:")){
+        const [, date, dayKey] = key.split(":");
+        await sbRequest("workout_entries?entry_date=eq."+date+"&day_key=eq."+dayKey, { method:"DELETE" });
+        return { key, deleted:true, shared:false };
+      }
+      if(key.startsWith("nutrition:")){
+        const date = key.split(":")[1];
+        await sbRequest("nutrition_entries?entry_date=eq."+date, { method:"DELETE" });
+        return { key, deleted:true, shared:false };
+      }
       localStorage.removeItem(key);
       return { key, deleted:true, shared:false };
     },
     async list(prefix){
+      if(prefix === "entry:"){
+        const rows = await sbRequest("workout_entries?select=entry_date,day_key&order=entry_date.desc");
+        return { keys: rows.map(r=>"entry:"+r.entry_date+":"+r.day_key), prefix, shared:false };
+      }
+      if(prefix === "nutrition:"){
+        const rows = await sbRequest("nutrition_entries?select=entry_date&order=entry_date.desc");
+        return { keys: rows.map(r=>"nutrition:"+r.entry_date), prefix, shared:false };
+      }
       const keys = Object.keys(localStorage).filter(k => !prefix || k.startsWith(prefix));
       return { keys, prefix, shared:false };
     }
