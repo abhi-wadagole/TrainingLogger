@@ -321,7 +321,7 @@ async function renderLog(){
     html += '<div class="ex-target">Target: '+ex.target+'</div>';
     if(ex.note) html += '<div class="ex-note">'+ex.note+'</div>';
     html += '</div></div>';
-    html += '<button class="info-btn" type="button" onclick="toggleInfo('+i+', '+JSON.stringify(ex.name)+')">Form?</button>';
+    html += '<button class="info-btn" type="button" data-info-idx="'+i+'" data-info-name="'+ex.name.replace(/"/g,"&quot;")+'">Form?</button>';
     html += '</div>';
     html += '<div class="info-panel" id="info-'+i+'"></div>';
     html += '<div class="sets-table">';
@@ -352,6 +352,14 @@ async function renderLog(){
       saveEntry(false);
     }
   }, true);
+
+  // "Form?" buttons (delegated, avoids fragile inline onclick + quoting issues)
+  view.addEventListener("click", (e)=>{
+    const btn = e.target.closest(".info-btn");
+    if(btn){
+      toggleInfo(parseInt(btn.dataset.infoIdx), btn.dataset.infoName);
+    }
+  });
 }
 
 function entryKey(){
