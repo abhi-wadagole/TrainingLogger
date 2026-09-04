@@ -703,7 +703,65 @@ async function computeExerciseMaxes(excludeKey){
   return maxes;
 }
 
-// ---------- Exercise info (wger.de, CC BY-SA, free open exercise database) ----------
+// ---------- Exercise info (Free Exercise DB — public domain, static, no API guesswork) ----------
+const EXDB_URL = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises.json";
+const EXDB_IMG_BASE = "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/dist/exercises/";
+const EXDB_CACHE_KEY = "exercisedb_cache_v1";
+let exerciseDbCache = null;
+
+async function loadExerciseDb(){
+  if(exerciseDbCache) return exerciseDbCache;
+  try{
+    const cached = localStorage.getItem(EXDB_CACHE_KEY);
+    if(cached){ exerciseDbCache = JSON.parse(cached); return exerciseDbCache; }
+  }catch(e){}
+  const res = await fetch(EXDB_URL);
+  if(!res.ok) throw new Error("could not load exercise database");
+  const data = await res.json();
+  exerciseDbCache = data;
+  try{ localStorage.setItem(EXDB_CACHE_KEY, JSON.stringify(data)); }catch(e){ /* quota — fine, just won't cache */ }
+  return data;
+}
+
+const EXDB_STOPWORDS = new Set(["machine","assisted","seated","standing","wide","stance","single","arm","the","a","an"]);
+const EXDB_MATCH_THRESHOLD = 0.34;
+
+function exdbTokenize(name){
+  return name.toLowerCase().replace(/[^a-z0-9\s]/g," ").split(/\s+/).filter(Boolean);
+}
+
+function exdbTokensMatch(a,b){
+  if(a===b) return true;
+  if(a.length>=3 && b.length>=3 && (a.startsWith(b)||b.startsWith(a))) return true;
+  if(a.length>=5 && b.length>=5 && a.slice(0,5)===b.slice(0,5)) return true;
+  return false;
+}
+
+function exdbFindBestMatch(db, name){
+  const fullTokens = exdbTokenize(name);
+  const coreTokens = fullTokens.filter(t=>!EXDB_STOPWORDS.has(t));
+  const tryTokens = coreTokens.length ? coreTokens : fullTokens;
+  let best = null, bestRatio = 0, bestMatches = 0;
+  db.forEach(ex=>{
+    const candTokens = exdbTokenize(ex.name);
+    const candSet = new Set(candTokens);
+    let matches = 0;
+    const matchedCand = new Set();
+    tryTokens.forEach(t=>{
+      for(const c of candSet){
+        if(!matchedCand.has(c) && exdbTokensMatch(t,c)){ matches++; matchedCand.add(c); break; }
+      }
+    });
+    if(matches===0) return;
+    const union = new Set([...tryTokens, ...candTokens]).size;
+    const ratio = matches/union;
+    if(ratio > bestRatio || (ratio===bestRatio && matches > bestMatches)){
+      bestRatio = ratio; best = ex; bestMatches = matches;
+    }
+  });
+  return (bestRatio >= EXDB_MATCH_THRESHOLD) ? best : null;
+}
+
 async function toggleInfo(idx, name){
   const panel = document.getElementById("info-"+idx);
   if(panel.style.display === "block"){ panel.style.display = "none"; return; }
@@ -711,7 +769,7 @@ async function toggleInfo(idx, name){
   if(panel.dataset.loaded === "1") return;
   panel.innerHTML = '<div class="loading">Loading...</div>';
 
-  const cacheKey = "wgerinfo:" + name.toLowerCase();
+  const cacheKey = "exinfo:" + name.toLowerCase();
   try{
     let data = null;
     try{
@@ -720,30 +778,40 @@ async function toggleInfo(idx, name){
     }catch(e){ /* not cached */ }
 
     if(!data){
-      const searchRes = await fetch("https://wger.de/api/v2/exercise/search/?term="+encodeURIComponent(name)+"&language=english&format=json");
-      const searchJson = await searchRes.json();
-      const first = searchJson.suggestions && searchJson.suggestions[0];
-      if(!first) throw new Error("no match");
-      const baseId = (first.data && (first.data.base_id || first.data.id));
-      if(!baseId) throw new Error("no id");
-      const infoRes = await fetch("https://wger.de/api/v2/exerciseinfo/"+baseId+"/?format=json");
-      const infoJson = await infoRes.json();
-      const img = (infoJson.images && infoJson.images.length) ? infoJson.images[0].image : null;
-      const muscles = (infoJson.muscles||[]).map(m=>m.name).join(", ");
-      const equipment = (infoJson.equipment||[]).map(e=>e.name).join(", ");
-      data = { img, muscles, equipment, id: baseId };
+      const db = await loadExerciseDb();
+      const match = exdbFindBestMatch(db, name);
+      if(!match) throw new Error("no match");
+      const imgPath = match.images && match.images[0];
+      data = {
+        img: imgPath ? EXDB_IMG_BASE + imgPath : null,
+        matchedName: match.name,
+        primaryMuscles: (match.primaryMuscles||[]).join(", "),
+        secondaryMuscles: (match.secondaryMuscles||[]).join(", "),
+        equipment: match.equipment || "",
+        instructions: match.instructions || []
+      };
       try{ await window.storage.set(cacheKey, JSON.stringify(data), false); }catch(e){}
     }
 
     let html = "";
-    if(data.img) html += '<img src="'+data.img+'" alt="'+name+'">';
-    if(data.muscles) html += '<div class="wger-meta"><b>Muscles:</b> '+data.muscles+'</div>';
+    if(data.img) html += '<img src="'+data.img+'" alt="'+name+'" loading="lazy">';
+    if(data.matchedName && data.matchedName.toLowerCase() !== name.toLowerCase()){
+      html += '<div class="wger-meta" style="font-style:italic;">Closest match: '+data.matchedName+'</div>';
+    }
+    if(data.primaryMuscles) html += '<div class="wger-meta"><b>Primary muscles:</b> '+data.primaryMuscles+'</div>';
+    if(data.secondaryMuscles) html += '<div class="wger-meta"><b>Secondary:</b> '+data.secondaryMuscles+'</div>';
     if(data.equipment) html += '<div class="wger-meta"><b>Equipment:</b> '+data.equipment+'</div>';
-    html += '<div class="wger-attr">Via <a href="https://wger.de/en/exercise/'+data.id+'/view/" target="_blank" rel="noopener">wger.de</a> (CC BY-SA) — tap for full instructions</div>';
+    if(data.instructions && data.instructions.length){
+      html += '<div class="wger-meta" style="margin-top:6px;"><b>How to:</b>';
+      html += '<ol style="margin:4px 0 0 18px;padding:0;">';
+      data.instructions.slice(0,6).forEach(step=>{ html += '<li style="margin-bottom:4px;">'+step+'</li>'; });
+      html += '</ol></div>';
+    }
+    html += '<div class="wger-attr">Source: Free Exercise DB (public domain)</div>';
     panel.innerHTML = html;
     panel.dataset.loaded = "1";
   }catch(e){
-    panel.innerHTML = '<div class="wger-meta">Couldn\'t find a match. <a href="https://wger.de/en/exercise/overview/" target="_blank" rel="noopener">Search wger.de directly</a> for "'+name+'".</div>';
+    panel.innerHTML = '<div class="wger-meta">Couldn\'t find a good match for "'+name+'" in the exercise database. <a href="https://yuhonas.github.io/free-exercise-db/" target="_blank" rel="noopener">Search it directly here.</a></div>';
     panel.dataset.loaded = "1";
   }
 }
